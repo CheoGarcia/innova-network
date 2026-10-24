@@ -24,6 +24,13 @@
   ol { margin:8px 0 0; padding-left:22px; }
   li { margin:5px 0; }
   .pill { display:inline-block; margin-top:20px; border-radius:999px; padding:8px 12px; background:#eaf1fb; color:#183d6b; font-size:12px; font-weight:700; }
+  .actions { margin-top:24px; display:flex; flex-wrap:wrap; gap:10px; }
+  button { appearance:none; border:0; border-radius:10px; padding:13px 18px; background:#1457a6; color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
+  button:hover { background:#104783; }
+  button:focus-visible { outline:3px solid #93c5fd; outline-offset:3px; }
+  .status { display:none; }
+  .status.show { display:block; }
+  .hidden { display:none !important; }
   footer { padding:18px 28px; background:#f8fafc; border-top:1px solid #e5eaf1; color:#5d687a; font-size:12px; line-height:1.6; }
   @media(max-width:480px) { header,main,footer { padding-left:19px; padding-right:19px; } }
 </style>
@@ -49,8 +56,52 @@
     <h2>¿Necesitas ayuda?</h2>
     <p>Contacta directamente a Innova Network por el canal de atención que utilizas habitualmente. No compartas tu contraseña de Internet.</p>
     <span class="pill">Aviso automático de red</span>
+    <div class="actions">
+      <button id="acceptButton" type="button">Aceptar y cerrar</button>
+    </div>
+    <section id="acceptedStatus" class="notice status" role="status" aria-live="polite" style="margin-top:20px">
+      <strong>Recordatorio cerrado</strong>
+      Gracias. Este aviso permanecerá oculto en este navegador durante 12 horas. Tu servicio no se suspende por cerrar este mensaje; la suspensión depende de tu fecha de pago y del periodo de gracia de Innova Network.
+    </section>
   </main>
   <footer>Innova Network · Este sitio es informativo y no procesa pagos. Verifica siempre los datos de pago por los canales oficiales de tu proveedor.</footer>
 </article>
+<script>
+(() => {
+  const STORAGE_KEY = 'innova-recordatorio-aceptado-hasta';
+  const DURACION_MS = 12 * 60 * 60 * 1000;
+  const acceptButton = document.getElementById('acceptButton');
+  const acceptedStatus = document.getElementById('acceptedStatus');
+  const noticeContent = document.querySelector('main > .notice');
+  const mainHeadings = document.querySelectorAll('main > h2, main > ol, main > p, main > .pill');
+
+  function showAcceptedState() {
+    if (noticeContent) noticeContent.classList.add('hidden');
+    mainHeadings.forEach(element => element.classList.add('hidden'));
+    if (acceptButton) acceptButton.classList.add('hidden');
+    if (acceptedStatus) acceptedStatus.classList.add('show');
+  }
+
+  try {
+    const acceptedUntil = Number(localStorage.getItem(STORAGE_KEY) || 0);
+    if (acceptedUntil > Date.now()) {
+      showAcceptedState();
+    } else if (acceptedUntil) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch (error) {
+    // Si el navegador bloquea el almacenamiento, el botón seguirá cerrando el aviso en esta vista.
+  }
+
+  acceptButton.addEventListener('click', () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, String(Date.now() + DURACION_MS));
+    } catch (error) {
+      // La página podrá cerrarse visualmente aunque no se pueda guardar el intervalo.
+    }
+    showAcceptedState();
+  });
+})();
+</script>
 </body>
 </html>
