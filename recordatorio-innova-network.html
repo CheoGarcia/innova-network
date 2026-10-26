@@ -66,42 +66,89 @@
   </main>
   <footer>Innova Network · Este sitio es informativo y no procesa pagos. Verifica siempre los datos de pago por los canales oficiales de tu proveedor.</footer>
 </article>
+
 <script>
 (() => {
   const STORAGE_KEY = 'innova-recordatorio-aceptado-hasta';
   const DURACION_MS = 12 * 60 * 60 * 1000;
+
+  const SCRIPT_URL =
+    'https://script.google.com/macros/s/AKfycbzhXkw6IlzbLLMPxSCaxAIadEiTazU4yHavEmJYNiMIwB8iWXg8Xt3VYT1eD235c1G-fA/exec';
+
+  const token = new URLSearchParams(window.location.search)
+    .get('token');
+
   const acceptButton = document.getElementById('acceptButton');
   const acceptedStatus = document.getElementById('acceptedStatus');
   const noticeContent = document.querySelector('main > .notice');
-  const mainHeadings = document.querySelectorAll('main > h2, main > ol, main > p, main > .pill');
+  const mainHeadings = document.querySelectorAll(
+    'main > h2, main > ol, main > p, main > .pill'
+  );
 
   function showAcceptedState() {
     if (noticeContent) noticeContent.classList.add('hidden');
-    mainHeadings.forEach(element => element.classList.add('hidden'));
+    mainHeadings.forEach(el => el.classList.add('hidden'));
     if (acceptButton) acceptButton.classList.add('hidden');
     if (acceptedStatus) acceptedStatus.classList.add('show');
   }
 
-  try {
-    const acceptedUntil = Number(localStorage.getItem(STORAGE_KEY) || 0);
-    if (acceptedUntil > Date.now()) {
-      showAcceptedState();
-    } else if (acceptedUntil) {
-      localStorage.removeItem(STORAGE_KEY);
+  function localPauseActive() {
+    try {
+      return Number(localStorage.getItem(STORAGE_KEY) || 0) > Date.now();
+    } catch (error) {
+      return false;
     }
-  } catch (error) {
-    // Si el navegador bloquea el almacenamiento, el botón seguirá cerrando el aviso en esta vista.
   }
 
-  acceptButton.addEventListener('click', () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, String(Date.now() + DURACION_MS));
-    } catch (error) {
-      // La página podrá cerrarse visualmente aunque no se pueda guardar el intervalo.
-    }
+  if (localPauseActive()) {
     showAcceptedState();
+  }
+
+  acceptButton.addEventListener('click', async () => {
+    if (!token) {
+      alert('No se encontró el identificador del recordatorio. Contacta a Innova Network.');
+      return;
+    }
+
+    acceptButton.disabled = true;
+    acceptButton.textContent = 'Enviando...';
+
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain;charset=UTF-8'
+        },
+        body: JSON.stringify({ token })
+      });
+
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          String(Date.now() + DURACION_MS)
+        );
+      } catch (error) {
+        // El registro remoto no depende del almacenamiento local.
+      }
+
+      const title = acceptedStatus.querySelector('strong');
+      if (title) title.textContent = 'Solicitud de cierre enviada';
+
+      acceptedStatus.lastChild.textContent =
+        'Tu solicitud se envió. La recepción debe comprobarse en el sistema. ' +
+        'Cerrar este aviso no suspende tu servicio de Internet.';
+
+      showAcceptedState();
+
+    } catch (error) {
+      acceptButton.disabled = false;
+      acceptButton.textContent = 'Reintentar';
+      alert('No se pudo enviar la solicitud. Revisa tu conexión e inténtalo nuevamente.');
+    }
   });
 })();
 </script>
+
 </body>
 </html>
